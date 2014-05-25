@@ -1,0 +1,183 @@
+run_analysis
+============
+Last updated `r as.character(Sys.time())` using `r R.version$version.string`.
+
+
+Objectives of the project
+------------------------
+
+> The purpose of this project is to demonstrate your ability to collect, work with, and clean a data set. The goal is to prepare tidy data that can be used for later analysis. You will be graded by your peers on a series of yes/no questions related to the project. You will be required to submit: 1) a tidy data set as described below, 2) a link to a Github repository with your script for performing the analysis, and 3) a code book that describes the variables, the data, and any transformations or work that you performed to clean up the data called CodeBook.md. You should also include a README.md in the repo with your scripts. This repo explains how all of the scripts work and how they are connected.  
+> 
+> One of the most exciting areas in all of data science right now is wearable computing - see for example this article . Companies like Fitbit, Nike, and Jawbone Up are racing to develop the most advanced algorithms to attract new users. The data linked to from the course website represent data collected from the accelerometers from the Samsung Galaxy S smartphone. A full description is available at the site where the data was obtained: 
+> 
+> http://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones 
+> 
+> Here are the data for the project: 
+> 
+> https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip 
+> 
+> You should create one R script called run_analysis.R that does the following. 
+> 
+> 1. Merges the training and the test sets to create one data set.
+> 2. Extracts only the measurements on the mean and standard deviation for each measurement.
+> 3. Uses descriptive activity names to name the activities in the data set.
+> 4. Appropriately labels the data set with descriptive activity names.
+> 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+> 
+
+
+Read the files
+--------------
+
+Read the data files.
+
+```{r}
+trainData <- read.table("./data/train/X_train.txt")
+trainLabel <- read.table("./data/train/y_train.txt")
+trainSubject <- read.table("./data/train/subject_train.txt")
+testData <- read.table("./data/test/X_test.txt")
+testLabel <- read.table("./data/test/y_test.txt") 
+testSubject <- read.table("./data/test/subject_test.txt")
+```
+
+Data structures
+------------------------------------
+
+### Training Data Structures
+
+#### TrainData:
+```{r}
+summary(trainData)
+```
+#### trainLabel:
+```{r}
+summary(trainLabel)
+```
+
+#### trainSubject:
+```{r}
+summary(trainSubject)
+```
+
+### Test Data Structures
+
+#### testData:
+```{r}
+summary(testData)
+```
+#### testLabel:
+```{r}
+summary(testLabel)
+```
+
+#### trainSubject:
+```{r}
+summary(testSubject)
+```
+
+Merge the training and the test sets
+------------------------------------
+
+Concatenate the data tables.
+
+```{r}
+joinData <- rbind(trainData, testData)
+joinLabel <- rbind(trainLabel, testLabel)
+joinSubject <- rbind(trainSubject, testSubject)
+```
+
+
+
+Extract only the mean and standard deviation
+--------------------------------------------
+
+
+
+```{r}
+features <- read.table("./data/features.txt")
+meanStdIndices <- grep("mean\\(\\)|std\\(\\)", features[, 2])
+length(meanStdIndices) 
+joinData <- joinData[, meanStdIndices]
+dim(joinData) 
+names(joinData) <- gsub("\\(\\)", "", features[meanStdIndices, 2]) 
+names(joinData) <- gsub("mean", "Mean", names(joinData)) 
+names(joinData) <- gsub("std", "Std", names(joinData)) 
+names(joinData) <- gsub("-", "", names(joinData))  
+```
+Read activity_labels.txt file
+
+```{r}
+activity <- read.table("./data/activity_labels.txt")
+activity[, 2] <- tolower(gsub("_", "", activity[, 2]))
+substr(activity[2, 2], 8, 8) <- toupper(substr(activity[2, 2], 8, 8))
+substr(activity[3, 2], 8, 8) <- toupper(substr(activity[3, 2], 8, 8))
+activityLabel <- activity[joinLabel[, 1], 2]
+joinLabel[, 1] <- activityLabel
+names(joinLabel) <- "activity"
+```
+
+
+Subset only measurements for the mean and standard deviation.
+```{r}
+names(joinSubject) <- "subject"
+cleanedData <- cbind(joinSubject, joinLabel, joinData)
+dim(cleanedData)  
+```
+
+Merged Data With Descriptive Activity dataset data structure
+```{r}
+summary(cleanedData)  
+```
+
+Merged Data With Descriptive Activity dataset first 3 lines
+```{r}
+head(cleanedData,3)  
+```
+
+write out the Merged Data With Descriptive Activity dataset
+```{r}
+write.table(cleanedData, "MergedDataWithDescriptiveActivity.txt") 
+```
+
+Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+```{r}
+subjectLen <- length(table(joinSubject)) 
+activityLen <- dim(activity)[1] 
+columnLen <- dim(cleanedData)[2]
+result <- matrix(NA, nrow=subjectLen*activityLen, ncol=columnLen) 
+result <- as.data.frame(result)
+colnames(result) <- colnames(cleanedData)
+row <- 1
+for(i in 1:subjectLen) {
+        for(j in 1:activityLen) {
+                result[row, 1] <- sort(unique(joinSubject)[, 1])[i]
+                result[row, 2] <- activity[j, 2]
+                bool1 <- i == cleanedData$subject
+                bool2 <- activity[j, 2] == cleanedData$activity
+                result[row, 3:columnLen] <- colMeans(cleanedData[bool1&bool2, 3:columnLen])
+                row <- row + 1
+        }
+}
+```
+
+tidy dataset dimensions
+```{r}
+dim(result) 
+```
+
+tidy dataset data structure
+```{r}
+summary(result)  
+```
+
+tidy dataset first 3 lines
+```{r}
+head(result,3)  
+```
+
+write out the Tidy Data With Means dataset
+
+```{r}
+write.table(result, "TidyDataWithMeans.txt") # write out the 2nd dataset
+```
+
